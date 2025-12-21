@@ -1,0 +1,81 @@
+# .gitlab-ci.yml
+
+stages:
+
+- deploy
+
+variables:
+ANSIBLE_HOST_KEY_CHECKING: “False”
+ANSIBLE_FORCE_COLOR: “true”
+
+# Job pour exécuter le playbook Ansible
+
+deploy_with_ansible:
+stage: deploy
+tags:
+- self-hosted
+- ansible
+
+before_script:
+# Vérifier qu’Ansible est installé sur le runner
+- ansible –version
+
+```
+# Configurer la clé SSH pour se connecter aux serveurs
+- mkdir -p ~/.ssh
+- chmod 700 ~/.ssh
+- echo "$SSH_PRIVATE_KEY" | tr -d '\r' > ~/.ssh/id_rsa
+- chmod 600 ~/.ssh/id_rsa
+- eval $(ssh-agent -s)
+- ssh-add ~/.ssh/id_rsa
+
+# Créer le fichier d'inventaire si nécessaire
+- echo "$ANSIBLE_INVENTORY" > inventory.ini
+```
+
+script:
+# Vérifier la syntaxe du playbook
+- ansible-playbook –syntax-check playbook.yml
+
+```
+# Exécuter le playbook Ansible
+- ansible-playbook -i inventory.ini playbook.yml --extra-vars "env=$CI_ENVIRONMENT_NAME"
+```
+
+only:
+- main
+- develop
+
+# Décommenter pour un déploiement manuel
+
+# when: manual
+
+environment:
+name: production
+
+# Job optionnel pour tester sur un environnement de staging
+
+deploy_staging:
+stage: deploy
+tags:
+- self-hosted
+- ansible
+
+before_script:
+- ansible –version
+- mkdir -p ~/.ssh
+- chmod 700 ~/.ssh
+- echo “$SSH_PRIVATE_KEY” | tr -d ‘\r’ > ~/.ssh/id_rsa
+- chmod 600 ~/.ssh/id_rsa
+- eval $(ssh-agent -s)
+- ssh-add ~/.ssh/id_rsa
+- echo “$ANSIBLE_INVENTORY_STAGING” > inventory_staging.ini
+
+script:
+- ansible-playbook -i inventory_staging.ini playbook.yml –extra-vars “env=staging”
+
+only:
+- develop
+
+environment:
+name: staging
