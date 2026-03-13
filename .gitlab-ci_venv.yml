@@ -1,0 +1,42 @@
+stages:
+  - deploy
+
+deploy:
+  stage: deploy
+  image: python:3.11-slim
+
+  variables:
+    TERM: "xterm-256color"
+    FORCE_COLOR: "1"
+    ANSIBLE_CONFIG: "$CI_PROJECT_DIR/ansible.cfg"
+
+  tags:
+    - nelixair
+
+  before_script:
+    # dépendances système
+    - apt update
+    - apt install -y openssh-client sshpass git
+
+    # création venv
+    - python -m venv .venv
+    - source .venv/bin/activate
+
+    # installation ansible
+    - pip install --upgrade pip
+    - pip install ansible
+
+    # installation collections
+    - ansible-galaxy collection install -r collections/requirements.yml
+
+    # configuration ssh
+    - mkdir -p ~/.ssh
+    - cp $SSH_PRIVATE_KEY ~/.ssh/ansible
+    - chmod 600 ~/.ssh/ansible
+
+  script:
+    - source .venv/bin/activate
+    - ansible-playbook -i inventories/hosts.ini playbooks/playbook.yaml
+
+  only:
+    - intest
