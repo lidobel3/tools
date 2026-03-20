@@ -6,33 +6,41 @@ set -e
 DATE=$(date +%F_%H-%M)
 BACKUP_DIR="/backup/bookstack"
 
+DB_CONTAINER="bookstack_db"       # nom du conteneur MySQL/MariaDB
+APP_CONTAINER="bookstack_app"     # conteneur BookStack
+
 DB_NAME="bookstack"
 DB_USER="bookstack"
 DB_PASS="PASSWORD"
-DB_HOST="localhost"
 
 BOOKSTACK_PATH="/var/www/bookstack"
 
 RETENTION_DAYS=5
 
-### CREATE BACKUP DIR
 mkdir -p "$BACKUP_DIR"
 
-echo "[$(date)] Starting backup..."
+echo "[$(date)] Starting Docker BookStack backup..."
 
 ### 1. BACKUP DATABASE
-echo "[$(date)] Dumping database..."
-mysqldump -h "$DB_HOST" -u "$DB_USER" -p"$DB_PASS" "$DB_NAME" \
+echo "[$(date)] Dumping database from container..."
+docker exec "$DB_CONTAINER" \
+  mysqldump -u"$DB_USER" -p"$DB_PASS" "$DB_NAME" \
   > "$BACKUP_DIR/db_$DATE.sql"
 
-### 2. BACKUP FILES
-echo "[$(date)] Archiving files..."
-tar -czf "$BACKUP_DIR/files_$DATE.tar.gz" \
+### 2. BACKUP FILES (depuis le conteneur)
+echo "[$(date)] Archiving BookStack files..."
+docker exec "$APP_CONTAINER" \
+  tar -czf /tmp/files_$DATE.tar.gz \
   "$BOOKSTACK_PATH/public/uploads" \
   "$BOOKSTACK_PATH/.env"
 
-### 3. OPTIONAL: MERGE INTO SINGLE ARCHIVE
-echo "[$(date)] Creating full archive..."
+docker cp "$APP_CONTAINER:/tmp/files_$DATE.tar.gz" \
+  "$BACKUP_DIR/files_$DATE.tar.gz"
+
+docker exec "$APP_CONTAINER" rm -f "/tmp/files_$DATE.tar.gz"
+
+### 3. ARCHIVE COMPLETE
+echo "[$(date)] Creating final archive..."
 tar -czf "$BACKUP_DIR/bookstack_backup_$DATE.tar.gz" \
   -C "$BACKUP_DIR" \
   "db_$DATE.sql" \
@@ -41,8 +49,8 @@ tar -czf "$BACKUP_DIR/bookstack_backup_$DATE.tar.gz" \
 ### 4. CLEAN TEMP FILES
 rm -f "$BACKUP_DIR/db_$DATE.sql" "$BACKUP_DIR/files_$DATE.tar.gz"
 
-### 5. PURGE OLD BACKUPS
-echo "[$(date)] Cleaning backups older than $RETENTION_DAYS days..."
+### 5. PURGE (5 jours)
+echo "[$(date)] Cleaning old backups..."
 find "$BACKUP_DIR" -type f -name "*.tar.gz" -mtime +$RETENTION_DAYS -delete
 
 echo "[$(date)] Backup completed successfully."
