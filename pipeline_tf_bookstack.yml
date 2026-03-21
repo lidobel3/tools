@@ -1,0 +1,87 @@
+stages:
+  - validate
+  - plan
+  - apply
+
+variables:
+  TF_VERSION: "1.14.7"  # Version fixe de Terraform
+  TF_ROOT: bookstack-terraform
+  TF_HTTP_USERNAME: "gitlab-ci-token"
+  TF_HTTP_PASSWORD: $CI_JOB_TOKEN
+
+# Cache pour accélérer les pipelines
+cache:
+  key: terraform-${TF_VERSION}
+  paths:
+    - ${TF_ROOT}/.terraform
+
+# -------------------------
+# Terraform - Validate
+# -------------------------
+terraform:validate:
+  stage: validate
+  image:
+    name: hashicorp/terraform:${TF_VERSION}
+    entrypoint: [""]
+  tags:
+    - nelixair
+  before_script:
+    - cd ${TF_ROOT}
+    - terraform init
+  script:
+    - terraform validate
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "push" || $CI_PIPELINE_SOURCE == "web"'
+
+# -------------------------
+# Terraform - Plan
+# -------------------------
+terraform:plan:
+  stage: plan
+  image:
+    name: hashicorp/terraform:${TF_VERSION}
+    entrypoint: [""]
+  tags:
+    - nelixair
+  before_script:
+    - cd ${TF_ROOT}
+    - terraform init
+  script:
+    - terraform plan -lock=false -out=tfplan
+    - terraform show -no-color tfplan > plan_output.txt
+    - cat plan_output.txt
+  artifacts:
+    paths:
+      - ${TF_ROOT}/tfplan
+      - ${TF_ROOT}/plan_output.txt
+    expire_in: 1 hour
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "terraform" && $CI_PIPELINE_SOURCE == "push"'
+    - if: '$CI_PIPELINE_SOURCE == "web"'
+
+# -------------------------
+# Terraform - Apply (manuel)
+# -------------------------
+terraform:apply:
+  stage: apply
+  image:
+    name: hashicorp/terraform:${TF_VERSION}
+    entrypoint: [""]
+  tags:
+    - nelixair
+  before_script:
+    - mkdir -p ~/.ssh
+    - echo "$TF_VAR_vm_ssh_private_key" > ~/.ssh/id_ed25519
+    - chmod 600 ~/.ssh/id_ed25519
+    - cd ${TF_ROOT}
+    - terraform init
+  script:
+    - terraform apply -auto-approve tfplan
+  after_script:
+    - rm -f ~/.ssh/id_ed25519  # Nettoyage de la clé SSH après utilisation
+  dependencies:
+    - terraform:plan
+  when: manual
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "terraform" && $CI_PIPELINE_SOURCE == "push"'
+    - if: '$CI_PIPELINE_SOURCE == "web"'
