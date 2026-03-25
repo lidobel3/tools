@@ -1,0 +1,107 @@
+
+
+#####################################################
+#													#
+# 	CREATION D'UNE CA AUTHORITHE DE CERTIFICATION	#
+#													#
+#####################################################
+
+# Générer la clé privée du serveur
+openssl genpkey -algorithm RSA -out server.key -aes256
+
+# Générer le certificat auto-signé pour le serveur
+openssl req -new -key server.key -out server.csr
+openssl x509 -req -in server.csr -signkey server.key -out server.crt -days 3650
+
+# Générer le certificat du client (si nécessaire)
+openssl req -new -newkey rsa:2048 -days 3650 -nodes -keyout client.key -out client.csr
+openssl x509 -req -in client.csr -CA server.crt -CAkey server.key -CAcreateserial -out client.crt -days 3650
+
+
+[global]
+pgbackrest.ssl = on
+pgbackrest.ssl-cert = /path/to/client/cert.pem
+pgbackrest.ssl-key = /path/to/client/key.pem
+pgbackrest.ssl-ca-cert = /path/to/ca/cert.pem
+# Optionnel : Si tu utilises une liste de révocation des certificats
+# pgbackrest.ssl-crl = /path/to/crl.pem
+
+
+openssl req -new -newkey rsa:2048 -days 3650 -nodes -keyout client.key -out client.csr
+
+[req]
+default_bits        = 2048
+default_keyfile     = privkey.pem
+default_md          = sha256
+distinguished_name  = req_distinguished_name
+req_extensions      = v3_req
+
+[req_distinguished_name]
+countryName         = FR
+stateOrProvinceName = Île-de-France
+localityName        = Paris
+organizationName    = Ma Société
+commonName          = www.lidobel.portfolio.fr.com
+emailAddress        = email@example.com
+
+[v3_req]
+subjectAltName = @alt_names
+
+[alt_names]
+DNS.1 = *
+DNS.2 = lidobel.portfolio.fr
+
+########################################################################################################################################################
+
+
+#CREATION DUNE CLE PRIVEE DE 4096 bit
+openssl genrsa -out certificat_1.key 4096
+#GENERATION D'UNE DEMANDE DE SIGNATURE A PARTIR DE LA CLE 4096
+openssl req -new -key certificat_1.key -out certificat_6.csr
+
+
+openssl req -new -key certificat_1.key -subj "/C=FR/ST=RH/L=Lyon/O=SNCF/OU=PFPR/CN=mq-itr.sncf.fr/emailAddress=ext.lidaw.beleyi@sncf.fr" -out certificat_5.csr 
+
+#DECODAGE DU CSR
+----------------
+openssl req -in certificat_1.csr -noout -text
+
+
+#CREATION NOUVELLE CLE + DEMANDE DE SIGNATURE (sans prompt)
+---------------------------------------------
+openssl req -nodes -newkey rsa:2048 -sha256 -keyout myserver.key -subj "/C=FR/ST=RH/L=Lyon/O=SNCF/OU=PFPR/CN=mq-itr.sncf.fr/emailAddress=ext.lidaw.beleyi@sncf.fr" -out myserver.csr -utf8
+
+#Longueur de clé plus longue
+openssl req -nodes -newkey rsa:4096 -sha256 -keyout myserver.key -subj "/C=FR/ST=RH/L=Lyon/O=SNCF/OU=PFPR/CN=mq-itr.sncf.fr/emailAddress=ext.lidaw.beleyi@sncf.fr" -out myserver.csr -utf8
+
+1) Générer une csr avec le bon CN et un point key
+2) Créer un keystore à partir du ponit key
+3) Importer le pem certificat signé résultant de la csr.
+4) Activation du ssl
+	4.1) Spécifier l'emplacement du keystore et de son mdp
+
+sudo apt install default-jdk
+
+keytool -genkey -alias mydomain -keyalg RSA -keystore KeyStore.jks -keysize 2048
+
+keytool -importkeystore -srckeystore testkeystore.p12 -srcstoretype pkcs12 -destkeystore wso2carbon.jks -deststoretype JKS
+
+--------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+scp ~/.ssh/id_rsa.pub darvader@deathstar.empire.gov
+scp ~/.ssh/id_rsa.pub vagrant@192.168.0.20
+scp ~/.ssh/id_rsa.pub vagrant@node1
+
+
+sudo ip route add 192.168.0.0/24 via 0.0.0.0
+sudo route add -net 192.168.0.0 netmask 255.255.255.0 gw 0.0.0.0
+sudo route add -net 192.168.0.0 netmask 255.255.255.0 gw 10.0.2.2
+
+sudo route add -net 192.168.1.0 netmask 255.255.255.0 gw 0.0.0.0
+sudo route add -net 192.168.1.0 netmask 255.255.255.0 gw 10.0.2.2
+
+
+192.168.0.0     0.0.0.0
+
+--------------------------------------------------------------------------------------------------------------------------------------------------
